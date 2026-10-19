@@ -1,0 +1,24 @@
+{
+  "name": "discord-server-management-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord.js v14 server management bot with Express API, Prisma/PostgreSQL, and Vite React dashboard.",
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
+    "build": "npm run build -w apps/backend && npm run build -w apps/frontend",
+    "lint": "npm run lint -w apps/backend && npm run lint -w apps/frontend",
+    "db:generate": "npm run prisma:generate -w apps/backend",
+    "db:migrate": "npm run prisma:migrate -w apps/backend",
+    "commands:register": "npm run commands:register -w apps/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20.18.0"
+  }
+}

@@ -1,0 +1,195 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ModerationActionType {
+  WARN
+  KICK
+  BAN
+  TIMEOUT
+}
+
+enum TicketStatus {
+  OPEN
+  CLOSED
+}
+
+model User {
+  id        String    @id @default(uuid())
+  discordId String    @unique
+  username  String
+  avatar    String?
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Guild {
+  id                     String                  @id
+  name                   String
+  icon                   String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  config                 GuildConfig?
+  members                Member[]
+  warnings               Warning[]
+  tickets                Ticket[]
+  moderationActions      ModerationAction[]
+  commandLogs            CommandLog[]
+  memberSnapshots        MemberSnapshot[]
+  scheduledAnnouncements ScheduledAnnouncement[]
+}
+
+model GuildConfig {
+  id                       String   @id @default(uuid())
+  guildId                  String   @unique
+  guild                    Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  welcomeChannelId         String?
+  welcomeMessage           String   @default("Welcome {user} to {server}!")
+  goodbyeChannelId         String?
+  goodbyeMessage           String   @default("{user} left {server}.")
+  autoRoleId               String?
+  logChannelId             String?
+  antiSpamEnabled          Boolean  @default(true)
+  antiSpamMaxMessages      Int      @default(5)
+  antiSpamWindowSeconds    Int      @default(8)
+  antiSpamTimeoutSeconds   Int      @default(300)
+  xpEnabled                Boolean  @default(true)
+  xpCooldownSeconds        Int      @default(60)
+  xpMin                    Int      @default(15)
+  xpMax                    Int      @default(25)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model Member {
+  id        String   @id @default(uuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  userId    String
+  username  String?
+  xp        Int      @default(0)
+  level     Int      @default(0)
+  messages  Int      @default(0)
+  joinedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, level, xp])
+}
+
+model Warning {
+  id          String   @id @default(uuid())
+  guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  userId      String
+  moderatorId String
+  reason      String
+  createdAt   DateTime @default(now())
+
+  @@index([guildId, userId])
+  @@index([guildId, createdAt])
+}
+
+model ModerationAction {
+  id              String               @id @default(uuid())
+  guildId          String
+  guild            Guild                @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  targetId         String
+  moderatorId      String
+  type             ModerationActionType
+  reason           String
+  durationSeconds  Int?
+  createdAt        DateTime             @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, targetId])
+}
+
+model Ticket {
+  id             String          @id @default(uuid())
+  guildId        String
+  guild          Guild           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  channelId      String?         @unique
+  openerId       String
+  status         TicketStatus    @default(OPEN)
+  transcriptHtml String?
+  closedById     String?
+  createdAt      DateTime        @default(now())
+  closedAt       DateTime?
+  messages       TicketMessage[]
+
+  @@index([guildId, status])
+  @@index([guildId, openerId])
+}
+
+model TicketMessage {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  authorTag String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model CommandLog {
+  id          String   @id @default(uuid())
+  guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  commandName String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, commandName])
+}
+
+model MemberSnapshot {
+  id          String   @id @default(uuid())
+  guildId     String
+  guild       Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  memberCount Int
+  createdAt   DateTime @default(now())
+
+  @@index([guildId, createdAt])
+}
+
+model ScheduledAnnouncement {
+  id              String    @id @default(uuid())
+  guildId          String
+  guild            Guild     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  channelId        String
+  message          String
+  sendAt           DateTime
+  intervalMinutes  Int?
+  enabled          Boolean   @default(true)
+  lastSentAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([guildId, enabled, sendAt])
+}
